@@ -1,34 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
+import {
+	addUser,
+	addTasksUser,
+	resolveTask,
+	deleteAllTasks
+} from "./functions.jsx";
 
 export function TodoList() {
 	const [task, setTask] = useState("");
 	const [taskListArray, setTaskListArray] = useState([]);
-	const [error, setError] = useState(false);
-
-	const addTask = event => {
-		if (task === "") {
-			setError(true);
-			return;
-		}
-		if (event.key == "Enter") {
-			setTaskListArray([...taskListArray, task]);
-			setTask("");
-			setError(false);
-		}
-	};
-
-	const deleteTask = id => {
-		const newTaskListArray = taskListArray.filter((task, index) => {
-			return index != id;
-		});
-		console.log(id);
-		setTaskListArray(newTaskListArray);
-	};
+	const [viewError, setError] = useState(false);
+	const [visible, setVisible] = useState("disable");
 
 	const clear = () => {
 		setTask("");
 		setError(false);
 	};
+
+	useEffect(() => {
+		addUser().then(() => resolveTask(setTaskListArray));
+	}, []);
 
 	return (
 		<div className="container p-3 mt-5 bg-secondary text-black">
@@ -44,34 +36,60 @@ export function TodoList() {
 						setError(false);
 					}}
 					value={task}
-					onKeyUp={addTask}
+					onKeyPress={async e => {
+						if (e.key == "Enter") {
+							await addTasksUser([
+								...taskListArray,
+								{ label: task, done: false }
+							]);
+							await resolveTask(setTaskListArray);
+							setTask("");
+						}
+					}}
 				/>
 			</div>
-			{error && (
+
+			{viewError && (
 				<div className="alert alert-danger" role="alert">
 					A simple primary alert—check it out!
 				</div>
 			)}
+
 			<ul className="list-group">
 				{taskListArray.map((task, index) => {
 					return (
 						<li
 							className="list-group-item d-flex justify-content-between bg-info"
 							id="liMap"
-							key={index}>
-							{task}
+							key={index}
+							onMouseEnter={e => setVisible("visible")}
+							onMouseLeave={e => setVisible("disable")}>
+							{task.label}
 							<div
-								className="btn erase-task"
-								title="Delete task"
-								onClick={() => {
-									deleteTask(index);
-								}}>
-								&times;
+								className={"btn erase-task" + visible}
+								onClick={async e => {
+									let filterTasks = taskListArray.filter(
+										t => t.label != task.label
+									);
+									await addTasksUser(filterTasks);
+									await resolveTask(setTaskListArray);
+								}}
+								onMouseEnter={e => setVisible("visible")}
+								onMouseLeave={e => setVisible("disable")}>
+								✖
 							</div>
 						</li>
 					);
 				})}
 			</ul>
+			<button
+				onClick={async e => {
+					await deleteAllTasks();
+					location.reload();
+				}}
+				className="btn btn-danger">
+				Delete all task
+			</button>
 			<div className="task-counter mt-2">
 				{taskListArray.length === 0
 					? "No task, add a task"
